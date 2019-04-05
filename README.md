@@ -189,9 +189,342 @@ urlpatterns = {
 }
 
 quit()
+
+
+from rest_framwork.schemas import get_schema_view
+
+schema_view = get_schema_view(title='Pastebin API')
+
+urlpatterns = [
+  path('schema/', schema_view),
+]
+
+from rest_framework import viewsets
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+  """
+  """
+  queryset = User.objects.all()
+  serializer_class = UserSerializer
+
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+class SnippetViewSet(viewsets.ModeViewSet):
+  """
+  """
+  queryset = Snippet.objects.all()
+  serializer_class = SnippetSerializer
+  permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+    IsOwnerOrReadOnly,)
+  
+  @action(detail=True, renderer_clases=[renderers.StaticHTMLRenderer])
+  def highlight(self, request, *args, **kwargs):
+    snippet = self.get_object()
+    return Response(snippet.highlighted)
+    
+  def perform_create(self, serializer):
+    serializer.save(owner=self.request.user)
+
+from snippets.views import SnippetViewSet, UserViewSet, api_root
+from rest_framework import renderers
+
+snippet_list = SnippetViewSet.as_view({
+  'get': 'list',
+  'post': 'create'
+})
+snippet_detail = SnippetViewSet.as_view({
+  'get': 'retrieve',
+  'put': 'update',
+  'patch': 'partial_update',
+  'delete': 'destroy',
+})
+snippet_highlight = SnippetViewSet.as_view({
+  'get': 'highlight'
+}, renderer_classes=[renderers.StaticHTMLRenderer])
+user_list = UserViewSet.as_view({
+  'get': 'list'
+})
+user_detail = UserViewSet.as_view({
+  'get': 'retrieve'
+})
+
+urlpattern = format_suffix_patterns([
+  path('', api_root)
+  path('snippets/', snippet_list, name='snippet-list'),
+  path('snippets/<int:pk>/', snippet_detail, name='snipet-detail')
+  path('snippets/<int:pk>/highlight/', snippet_highlihgt, name='snippet-highlight'),
+  path('users/', user_list, name='user_list'),
+  path('users/<int:pk>/', user_detail, name='user-detail')
+])
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from snippets import views
+
+router = DefaultRouter()
+router.register(r'snippets', views.SnippetViewSet)
+router.register(r'users', views.UserViewSet)
+
+urlpatterns = [
+  path('', include(router.urls)),
+]
+
+from rest_framework import viewsets
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+  """
+  """
+  queryset = User.objects.all()
+  serializer_class = UserSerializer
+
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+class SnippetViewSet(viewsets.ModeViewSet):
+  """
+  """
+  queryset = Snippet.objects.all()
+  serializer_class = SnippetSerializer
+  permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+    IsOwnerOrReadOnly,)
+  
+  @action(detail=True, renderer_classes=[renderers.StaticHTMLRenderer])
+  def highlight(self, request, *args, **kwargs):
+    snippet = self.get_object()
+    return Response(snippet.highlihgted)
+    
+  def perform_create(self, serializer):
+    serializer.save(owner=self.request.user)
+
+from snippets.views import SnippetViewSet, UserViewSet, api_root
+from rest_framework import renderers
+
+snippet_list = SnippetViewSet.as_view({
+  'get': 'list',
+  'post': 'create'
+})
+snippet_detail = SnippetViewSet.as_view({
+  'get': 'retrieve',
+  'put': 'update',
+  'patch': 'partial_update',
+  'delete': 'destroy',
+})
+snippet_highlihgt = SnippetViewSet.as_view({
+  'get': 'highlight' 
+}, renderer_classes={renderers.StaticHTMLRenderer})
+user_list = UserViewSet.as_view({
+  'get': 'list'
+})
+user_detail = UserViewSet.as_view({
+  'get': 'retrieve'
+})
+
+urlpatterns = format_suffix_patterns([
+  path('', api_root),
+  path('snippets/', snippet_list, name='snippet-list'),
+  path('snippets/<int:pk>', snippet_detail, name='snippet-detail'),
+  path('users/', user_list, name='user-list'),
+  path('user/<int:pk>/', user_detail, name='user-detail')
+])
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from snippets import views
+
+router = DefaultRouter()
+router.register(r'snippets', views.SnippetViewSet)
+router.register(r'users', views.UserViewSet)
+
+urlpatterns = [
+  path('', include(router.urls)),
+]
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework.reverse import reverse
+
+@api_view(['GET'])
+def api_root(request, fromat=None):
+  return Response({
+    'users': reverse('user-list', request=request, format-format),
+    'snippets': reverse('snippet-list', request=request, format=format)
+  })
+
+from rest_framework import renderers
+from rest_framework.response import Response
+
+class Snippethighlihgt(generics.GenericAPIView):
+  queryset = Snippet.objects.all()
+  renderer_classes = (renderers.StaticHTMLRenderer,)
+  
+  def get(self, request, *args, **kwargs):
+    snippet = self.get_object()
+    return Response(snippet.highlighted)
+
+path('', views.api_root),
+
+path('snippets/<int:pk>/highlight/', views.SnippetHighlight.as_view()),
+
+
+class SnippetSerializer(serializers.HyperlinkedModelSerializer):
+  owner = serializers.ReadOnlyField(source='owner.username')
+  highlight = serializers.HyperlinkedIdentityField(view_name='snippet-highlight', format='html')
+  
+  class Meta:
+    model = Snippet
+    fields = ('url', 'id', 'highlight', 'owner',
+      'title', 'code', 'linenos', 'language', 'style')
+      
+class UserSerializer(serializers.HyperlinkedModelSerializer):
+  snippets = serializers.HyperlinkedRelatedField(many=True, view_name='snippet-detail', read_only=True)
+
+  class Meta:
+    model = User
+    fields = ('url', 'id', 'username', 'snippets')
+
+from django.urls import path
+from rest_framework.urlpatterns import format_suffix_patterns
+from snippets import views
+
+urlpatterns = format_suffix_patterns([
+  path('', views.api_root),
+  path('snippets/',
+    views.SnippetList.as_view(),
+    name='snippet-list'),
+  path('snippets/<int:pk>/',
+    views.SnippetDetail.as_view(),
+    name='snippet-detail'),
+  path('snippets/<int:pk>/highlight/',
+    views.SnippetHighlight.as_view(),
+    name='snippet-highlihgt'),
+  path('users/',
+    views.UserList.as_view()),
+  path('users/<int:pk>',
+    views.UserDetail.as_view(),
+    name='user-detail'),
+])
+
+REST_FRAMEWORK = {
+  'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+  'PAGE_SIZE': 10
+}
+
+
+owner = models.ForeignKey('auth.User', related_name='snippets', on_delete=models.CASCADE)
+highlighted = models.TextField()
+
+from pygments.lexers import get_lexer_by_name
+from pygments.formatteers.html import HtmlFormatter
+from pygments. import highlihgt
+
+def save(self, *args, **kwargs):
+  """
+  """
+  lexer = get_lexer_by_name(self.language)
+  linenos = 'table' if self.linenos else False
+  options = {'table': self.title} if self.title else {}
+  formatter = HtmlFormatter(style=self.style, linenos=linenos,
+    full=True, **options)
+  self.highlihgted = highlihgt(self.code, lexer, formatter)
+  super(Snippet, self).save(*args, **kwargs)
+
+
+from django.contrib.auth.models import User
+
+class UserSerializer(serializers.ModelSerializer):
+  snippets = serializers.PrimaryKeyRelatedField(many=True, queryset=Snippet.objects.all())
+
+  class Meta:
+    model = User
+    fields = {'id', 'username', 'snippets'}
+
+
+from django.contrib.auth.models import User
+
+class UserList(generics.ListAPIView):
+  queryset = User.objects.all()
+  serializer_class = UserSerializer
+  
+class UserDetail(generics.RetrieveAPIView):
+  queryset = User.objects.all()
+  serializer_class = UserSerializer
+
+from snippets.serializers import UserSerializer
+
+path('users/', views.UserList.as_view()),
+path('users/<int:pk>/', views.UserDetail.as_view()),
+
+def perform_create(self, serializer):
+  serializer.save(owner=self.request.user)
+
+
+owner = serializers.ReadOnlyField(source='owner.username')
+
+from rest_framework import permissions
+
+permissions_classes = (permissions.IsAuthenticatedOrReadOnly,)
+
+from django.conf.urls import include
+
+urlpatterns += {
+  path('api-auth/', include('rest_framework.urls')),
+}
+
+from rest_framework import permissions
+  """
+  """
+  def has_object_permission(self, request, view, obj):
+    if request.method in permissions.SAFE_METHODS:
+      return True
+      
+    return obj.owner == request.user
+
+permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+  IsOwnerOrReadOnly,)
+  
+from snippets.permissions import IsOwnerOrReadOnly
 ```
 
 ```sh
+http POST http://127.0.0.1:8000/snippets/ code="print(123)"
+{
+  "detail": "Authentication credentials were not provided."
+}
+
+http -a admin:password123 POST http://127.0.0.1:8000/snippets/ code="print(789)"
+
+{
+  "id": 1,
+  "owner": "admin",
+  "title": "foo",
+  "code": "print(789)",
+  "linenos": false,
+  "language": "python",
+  "style": "friendly"
+}
+
+rm -rf db.sqlite3
+rm -r snippets/migrations
+python manage.py makemigrations snippets
+python manage.py migrate
+
+python manage.py createsuperuser
+
+http http://127.0.0.1:8000/shcema/ Accept:application/coreapi+json
+pip install coreapi-cli
+coreapi
+coreapi get http://127.0.0.1:800/schema/
+coreapi action snippets list
+coreapi action snippets highlight --param id=1
+coreapi credentials add 127.0.0.1 <username>:<password> --auth basic
+coreapi reload
+coreapi action snippets create --param title="Example" --param code="print('hello, world')"
+coreapi action snippets delete --param id=7
+
+pip install coreapi pyyaml
+
 python manager.py runserver
 pip install httpie
 
